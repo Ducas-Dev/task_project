@@ -1,0 +1,71 @@
+name: Tests Task
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: task_test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ secrets.DB_TEST_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d task_test_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_pgsql
+          coverage: none
+
+      - name: Installer les dépendances
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Préparer Laravel
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan config:clear
+
+      - name: Migrer la base de test
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: task_test_db
+          DB_USERNAME: postgres
+          DB_PASSWORD: ${{ secrets.DB_TEST_PASSWORD }}
+        run: php artisan migrate:fresh --force
+
+      - name: Exécuter les tests
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: task_test_db
+          DB_USERNAME: postgres
+          DB_PASSWORD: ${{ secrets.DB_TEST_PASSWORD }}
+        run: php artisan test
