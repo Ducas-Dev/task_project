@@ -48,6 +48,7 @@ jobs:
           php artisan key:generate
           php artisan config:clear
 
+
       - name: Migrer la base de test
         env:
           APP_ENV: testing
