@@ -39,6 +39,9 @@ jobs:
           extensions: mbstring, pdo_pgsql
           coverage: none
 
+      - name: mise a jour les dépendances
+        run: composer update
+
       - name: Installer les dépendances
         run: composer install --no-interaction --prefer-dist
 
