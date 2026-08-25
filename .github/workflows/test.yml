@@ -42,12 +42,23 @@ jobs:
       - name: Installer les dépendances
         run: composer install --no-interaction --prefer-dist
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build Vite assets
+        run: npm run build
+
       - name: Préparer Laravel
         run: |
           cp .env.example .env
           php artisan key:generate
           php artisan config:clear
-
 
       - name: Migrer la base de test
         env:
