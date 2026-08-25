@@ -39,15 +39,12 @@ jobs:
           extensions: mbstring, pdo_pgsql
           coverage: none
 
-      - name: mise a jour les dépendances
-        run: composer update
-
       - name: Installer les dépendances
         run: composer install --no-interaction --prefer-dist
 
       - name: Préparer Laravel
         run: |
-          cp .env.example .env
+          cp .env.testing .env
           php artisan key:generate
           php artisan config:clear
 
