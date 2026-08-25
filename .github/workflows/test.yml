@@ -44,7 +44,7 @@ jobs:
 
       - name: Préparer Laravel
         run: |
-          cp .env.testing .env
+          cp .env.example .env
           php artisan key:generate
           php artisan config:clear
 
