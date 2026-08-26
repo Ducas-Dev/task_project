@@ -41,6 +41,10 @@ RUN npm install
 # Application
 COPY . .
 
+
+# Générer les assets Vite
+RUN npm run build
+
 # Maintenant artisan existe
 RUN composer dump-autoload --optimize
 
