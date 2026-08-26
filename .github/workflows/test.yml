@@ -86,4 +86,21 @@ jobs:
         run: php artisan test
 
       - name: Construire l'image Docker
-        run: docker build -t task-app -f docker/php/Dockerfile .
+        run: docker build --no-cache
+
+      - name: Démarrer les services
+        run: docker compose up -d --build
+
+      - name: Vérifier les services
+        run: docker compose ps
+
+      - name: Migrations Laravel
+        run: docker compose exec -T app php artisan migrate --force
+
+      - name: Tests
+        run: docker compose exec -T app php artisan test
+
+      - name: Arrêter les services
+        if: always()
+        run: docker compose down -v
+
