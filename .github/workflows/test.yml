@@ -86,7 +86,8 @@ jobs:
         run: php artisan test
 
       - name: Construire l'image Docker
-        run: docker build --no-cache
+        run: docker build --no-cache -t task-app -f docker/php/Dockerfile .
+
 
       - name: Démarrer les services
         run: docker compose up -d --build
