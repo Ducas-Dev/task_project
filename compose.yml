@@ -10,6 +10,9 @@ services:
       - "5173:5173"
 
     environment:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -45,6 +48,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 5s
 
 volumes:
   postgres_data:
