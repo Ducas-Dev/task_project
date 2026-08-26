@@ -30,7 +30,7 @@ services:
     container_name: task-postgres
 
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "5433:5432"
 
     environment:
       POSTGRES_DB: ${DB_DATABASE}
