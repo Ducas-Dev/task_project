@@ -90,6 +90,10 @@ jobs:
           docker compose exec -T app \
             php artisan test
 
+      - name: Tests E2E
+        run: |
+          npx playwright test
+
       - name: Logs en cas d'échec
         if: failure()
         run: |
