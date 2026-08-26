@@ -3,8 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TaskController;
 
-Route::get('/', [TaskController::class, 'login'])->name('login');
-Route::get('/task', [TaskController::class, 'getTask'])->name('get.task');
+Route::get('/login', [TaskController::class, 'login'])->name('login');
+Route::get('/', [TaskController::class, 'getTask'])->name('get.task');
 Route::get('/create-task', [TaskController::class, 'createTask'])->name('create.task');
 Route::post('/save-task', [TaskController::class, 'saveTask'])->name('save.task');
 Route::get('/tasks/{task}/edit', [TaskController::class, 'edit'])->name('edit.task');
