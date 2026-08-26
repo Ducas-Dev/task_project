@@ -19,7 +19,6 @@ jobs:
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
     steps:
-
       - name: Récupérer le code
         uses: actions/checkout@v4
 
@@ -28,36 +27,60 @@ jobs:
           test -n "$DB_DATABASE" || (echo "DB_DATABASE est vide" && exit 1)
           test -n "$DB_USERNAME" || (echo "DB_USERNAME est vide" && exit 1)
           test -n "$DB_PASSWORD" || (echo "DB_PASSWORD est vide" && exit 1)
+
           echo "Variables DB présentes"
 
+      - name: Préparer Laravel
+        run: |
+          cp .env.example .env
+
       - name: Construire et démarrer les services
-        run: docker compose up -d --build
+        run: |
+          docker compose up -d --build
 
       - name: Vérifier les services
-        run: docker compose ps
+        run: |
+          docker compose ps
 
       - name: Attendre PostgreSQL
         run: |
-          until docker compose exec -T postgres pg_isready -U "$DB_USERNAME" -d "$DB_DATABASE"; do
+          until docker compose exec -T postgres \
+            pg_isready \
+            -U "$DB_USERNAME" \
+            -d "$DB_DATABASE"
+          do
             echo "PostgreSQL n'est pas encore prêt..."
             sleep 2
           done
 
-      - name: Préparer Laravel
+      - name: Vérifier Laravel
+        run: |
+          docker compose exec -T app php artisan --version
+
+      - name: Générer la clé Laravel
         run: |
           docker compose exec -T app php artisan key:generate
+
+      - name: Nettoyer le cache
+        run: |
           docker compose exec -T app php artisan config:clear
 
       - name: Migrations
-        run: docker compose exec -T app php artisan migrate:fresh --force
+        run: |
+          docker compose exec -T app \
+            php artisan migrate:fresh --force
 
       - name: Tests
-        run: docker compose exec -T app php artisan test
+        run: |
+          docker compose exec -T app \
+            php artisan test
 
-      - name: Logs
+      - name: Logs en cas d'échec
         if: failure()
-        run: docker compose logs
+        run: |
+          docker compose logs
 
       - name: Arrêter les services
         if: always()
-        run: docker compose down -v
+        run: |
+          docker compose down -v

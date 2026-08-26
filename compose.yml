@@ -1,16 +1,25 @@
 services:
   app:
-    build: 
+    build:
       context: .
       dockerfile: docker/php/Dockerfile
     container_name: task-app
+
     ports:
       - "8000:8000"
       - "5173:5173"
+
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
     volumes:
       - .:/var/www/html
-      - vendor:/var/www/html/vendor
-      - node_modules:/var/www/html/node_modules
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -18,21 +27,27 @@ services:
   postgres:
     image: postgres:16
     container_name: task-postgres
+
     ports:
-    - "${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
+
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+        ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 volumes:
-  vendor:
-  node_modules:
   postgres_data:
