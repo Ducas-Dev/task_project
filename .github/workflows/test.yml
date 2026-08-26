@@ -90,9 +90,15 @@ jobs:
           docker compose exec -T app \
             php artisan test
 
-      - name: Tests E2E
-        run: |
-          npx playwright test
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test
+
 
       - name: Logs en cas d'échec
         if: failure()
