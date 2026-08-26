@@ -14,17 +14,22 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      APP_KEY: ${{ secrets.APP_KEY }}
       DB_DATABASE: ${{ secrets.DB_DATABASE }}
       DB_USERNAME: ${{ secrets.DB_USERNAME }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
     steps:
-
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: Vérifier les variables DB
+      - name: Vérifier les variables
         run: |
+          test -n "$APP_KEY" || {
+            echo "APP_KEY est vide"
+            exit 1
+          }
+
           test -n "$DB_DATABASE" || {
             echo "DB_DATABASE est vide"
             exit 1
@@ -40,18 +45,7 @@ jobs:
             exit 1
           }
 
-          echo "Variables DB présentes"
-
-      - name: Préparer Laravel
-        run: |
-          cp .env.example .env
-
-          sed -i "s/^DB_DATABASE=.*/DB_DATABASE=${DB_DATABASE}/" .env
-          sed -i "s/^DB_USERNAME=.*/DB_USERNAME=${DB_USERNAME}/" .env
-          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASSWORD}/" .env
-
-          sed -i "s/^DB_HOST=.*/DB_HOST=postgres/" .env
-          sed -i "s/^DB_PORT=.*/DB_PORT=5432/" .env
+          echo "Variables nécessaires présentes"
 
       - name: Construire et démarrer les services
         run: |
@@ -78,14 +72,13 @@ jobs:
         run: |
           docker compose exec -T app php artisan --version
 
-      - name: Générer la clé Laravel
-        run: |
-          docker compose exec -T app php artisan key:generate --force
-
-      - name: Nettoyer les caches Laravel
+      - name: Vérifier la configuration Laravel
         run: |
           docker compose exec -T app php artisan config:clear
-          docker compose exec -T app php artisan cache:clear
+
+      - name: Vérifier la connexion PostgreSQL
+        run: |
+          docker compose exec -T app php artisan migrate:status
 
       - name: Migrations
         run: |
