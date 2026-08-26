@@ -78,7 +78,7 @@ jobs:
 
       - name: Vérifier la connexion PostgreSQL
         run: |
-          docker compose exec -T app php artisan migrate:status
+          docker compose exec -T app php artisan db:show
 
       - name: Migrations
         run: |
