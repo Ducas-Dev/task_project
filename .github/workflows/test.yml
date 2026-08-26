@@ -11,6 +11,7 @@ on:
 
 jobs:
   tests:
+
     runs-on: ubuntu-latest
 
     services:
@@ -22,6 +23,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.DB_TEST_PASSWORD }}
         ports:
           - 5432:5432
+
         options: >-
           --health-cmd="pg_isready -U postgres -d task_test_db"
           --health-interval=10s
@@ -29,6 +31,7 @@ jobs:
           --health-retries=5
 
     steps:
+
       - name: Récupérer le code
         uses: actions/checkout@v4
 
@@ -39,19 +42,19 @@ jobs:
           extensions: mbstring, pdo_pgsql
           coverage: none
 
-      - name: Installer les dépendances
+      - name: Installer les dépendances PHP
         run: composer install --no-interaction --prefer-dist
 
-      - name: Setup Node.js
+      - name: Installer Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Install Node dependencies
+      - name: Installer les dépendances Node
         run: npm ci
 
-      - name: Build Vite assets
+      - name: Compiler Vite
         run: npm run build
 
       - name: Préparer Laravel
@@ -60,7 +63,7 @@ jobs:
           php artisan key:generate
           php artisan config:clear
 
-      - name: Migrer la base de test
+      - name: Migrer la base de données
         env:
           APP_ENV: testing
           DB_CONNECTION: pgsql
@@ -81,3 +84,6 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: ${{ secrets.DB_TEST_PASSWORD }}
         run: php artisan test
+
+      - name: Construire l'image Docker
+        run: docker build -t task-app .
