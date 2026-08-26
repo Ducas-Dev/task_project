@@ -90,7 +90,12 @@ jobs:
 
 
       - name: Démarrer les services
+        env:
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: docker compose up -d --build
+
 
       - name: Vérifier les services
         run: docker compose ps
