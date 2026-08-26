@@ -2,7 +2,7 @@
 @section('title', 'Mes tâches')
 
 @section('button')
-    <a href="{{ route('create.task')}}"
+    <a href="{{ route('create.task')}}" id="add-task"
         class="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-700">
         + Nouvelle tâche
     </a>

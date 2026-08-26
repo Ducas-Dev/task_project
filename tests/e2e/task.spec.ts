@@ -5,3 +5,6 @@ test('la page des tâches est accessible', async ({ page }) => {
 
     await expect(page).toHaveURL(/tasks/);
 });
+
+
+

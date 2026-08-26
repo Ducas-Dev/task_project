@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+
     container_name: task-app
 
     ports:
@@ -25,8 +26,13 @@ services:
       postgres:
         condition: service_healthy
 
+    networks:
+      - task-network
+
+
   postgres:
     image: postgres:16
+
     container_name: task-postgres
 
     ports:
@@ -50,6 +56,14 @@ services:
       timeout: 5s
       retries: 10
       start_period: 5s
+
+    networks:
+      - task-network
+
+
+networks:
+  task-network:
+
 
 volumes:
   postgres_data:
