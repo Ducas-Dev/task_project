@@ -1,86 +1,50 @@
-name: Tests Task
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: task-app
 
-on:
-  push:
-    branches:
-      - main
+    ports:
+      - "8000:8000"
+      - "5173:5173"
 
-  pull_request:
-    branches:
-      - main
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
 
-jobs:
-  tests:
-    runs-on: ubuntu-latest
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-    env:
-      DB_DATABASE: ${{ secrets.DB_DATABASE }}
-      DB_USERNAME: ${{ secrets.DB_USERNAME }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  postgres:
+    image: postgres:16
+    container_name: task-postgres
 
-    steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v4
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
 
-      - name: Vérifier les variables
-        run: |
-          test -n "$DB_DATABASE" || (echo "DB_DATABASE est vide" && exit 1)
-          test -n "$DB_USERNAME" || (echo "DB_USERNAME est vide" && exit 1)
-          test -n "$DB_PASSWORD" || (echo "DB_PASSWORD est vide" && exit 1)
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
 
-          echo "Variables DB présentes"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-      - name: Préparer Laravel
-        run: |
-          cp .env.example .env
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-      - name: Construire et démarrer les services
-        run: |
-          docker compose up -d --build
-
-      - name: Vérifier les services
-        run: |
-          docker compose ps
-
-      - name: Attendre PostgreSQL
-        run: |
-          until docker compose exec -T postgres \
-            pg_isready \
-            -U "$DB_USERNAME" \
-            -d "$DB_DATABASE"
-          do
-            echo "PostgreSQL n'est pas encore prêt..."
-            sleep 2
-          done
-
-      - name: Vérifier Laravel
-        run: |
-          docker compose exec -T app php artisan --version
-
-      - name: Générer la clé Laravel
-        run: |
-          docker compose exec -T app php artisan key:generate
-
-      - name: Nettoyer le cache
-        run: |
-          docker compose exec -T app php artisan config:clear
-
-      - name: Migrations
-        run: |
-          docker compose exec -T app \
-            php artisan migrate:fresh --force
-
-      - name: Tests
-        run: |
-          docker compose exec -T app \
-            php artisan test
-
-      - name: Logs en cas d'échec
-        if: failure()
-        run: |
-          docker compose logs
-
-      - name: Arrêter les services
-        if: always()
-        run: |
-          docker compose down -v
+volumes:
+  postgres_data:
