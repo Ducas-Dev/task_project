@@ -163,6 +163,9 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Installer les dépendances PHP
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
       - name: Installer les dépendances
         run: |
           npm ci
