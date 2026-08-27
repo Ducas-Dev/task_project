@@ -10,7 +10,9 @@ on:
       - main
 
 jobs:
-  tests:
+
+  preparation:
+    name: Préparation
     runs-on: ubuntu-latest
 
     env:
@@ -23,7 +25,7 @@ jobs:
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: Vérifier les variables
+      - name: Vérifier les variables d'environnement
         run: |
           test -n "$APP_KEY" || {
             echo "APP_KEY est vide"
@@ -47,6 +49,21 @@ jobs:
 
           echo "Variables nécessaires présentes"
 
+  infrastructure:
+    name: Infrastructure Docker
+    runs-on: ubuntu-latest
+    needs: preparation
+
+    env:
+      APP_KEY: ${{ secrets.APP_KEY }}
+      DB_DATABASE: ${{ secrets.DB_DATABASE }}
+      DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
       - name: Construire et démarrer les services
         run: |
           docker compose up -d --build
@@ -68,39 +85,112 @@ jobs:
 
           echo "PostgreSQL est prêt"
 
-      - name: Vérifier Laravel
+  laravel:
+    name: Validation Laravel
+    runs-on: ubuntu-latest
+    needs: infrastructure
+
+    env:
+      APP_KEY: ${{ secrets.APP_KEY }}
+      DB_DATABASE: ${{ secrets.DB_DATABASE }}
+      DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Construire et démarrer les services
         run: |
-          docker compose exec -T app php artisan --version
+          docker compose up -d --build
+
+      - name: Vérifier la version Laravel
+        run: |
+          docker compose exec -T app \
+            php artisan --version
 
       - name: Vérifier la configuration Laravel
         run: |
-          docker compose exec -T app php artisan config:clear
+          docker compose exec -T app \
+            php artisan config:clear
 
       - name: Vérifier la connexion PostgreSQL
         run: |
-          docker compose exec -T app php artisan db:show
+          docker compose exec -T app \
+            php artisan db:show
 
-      - name: Migrations
+  backend-tests:
+    name: Tests Laravel
+    runs-on: ubuntu-latest
+    needs: laravel
+
+    env:
+      APP_KEY: ${{ secrets.APP_KEY }}
+      DB_DATABASE: ${{ secrets.DB_DATABASE }}
+      DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Démarrer les services
+        run: |
+          docker compose up -d
+
+      - name: Exécuter les migrations
         run: |
           docker compose exec -T app \
             php artisan migrate:fresh --force
 
-      - name: Tests
+      - name: Exécuter les tests Laravel
         run: |
           docker compose exec -T app \
             php artisan test
 
-      - name: Install dependencies
-        run: npm ci
+  playwright:
+    name: Tests Playwright
+    runs-on: ubuntu-latest
+    needs: backend-tests
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
 
-      - name: Run Playwright tests
-        run: npx playwright test
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
 
+      - name: Installer les dépendances
+        run: |
+          npm ci
 
-      - name: Logs en cas d'échec
+      - name: Installer les navigateurs Playwright
+        run: |
+          npx playwright install --with-deps
+
+      - name: Lancer les tests Playwright
+        run: |
+          npx playwright test
+
+  cleanup:
+    name: Nettoyage
+    runs-on: ubuntu-latest
+    needs:
+      - infrastructure
+      - laravel
+      - backend-tests
+      - playwright
+
+    if: always()
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Afficher les logs en cas d'échec
         if: failure()
         run: |
           docker compose logs
