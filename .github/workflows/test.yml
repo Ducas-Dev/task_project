@@ -1,55 +1,129 @@
-name: CI
+name: Laravel CI
 
 on:
   push:
     branches:
       - main
 
+  pull_request:
+    branches:
+      - main
+
+
 jobs:
 
-  environment:
-    name: Découvrir GitHub Actions
+  # ==========================================================
+  # TESTS
+  # ==========================================================
+
+  tests:
+    name: Tests Laravel
 
     runs-on: ubuntu-latest
 
+    services:
+
+      postgres:
+        image: postgres:16
+
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd="pg_isready -U postgres -d testing"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: testing
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
     steps:
 
-      - name: Récupérer le code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Afficher le système
-        run: |
-          echo "=== Système ==="
-          uname -a
+      - name: Installer PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo, pdo_pgsql
+          coverage: none
 
-      - name: Afficher PHP
+      - name: Installer Composer
         run: |
-          echo "=== PHP ==="
-          php --version
+          composer install \
+            --no-interaction \
+            --prefer-dist
 
-      - name: Afficher Git
+      - name: Préparer Laravel
         run: |
-          echo "=== Git ==="
-          git --version
+          cp .env.example .env
+          php artisan key:generate
 
-      - name: Afficher Docker
+      - name: Nettoyer la configuration
         run: |
-          echo "=== Docker ==="
-          docker --version
+          php artisan config:clear
 
-      - name: Afficher le projet
+      - name: Vérifier PostgreSQL
         run: |
-          echo "=== Projet ==="
-          pwd
-          ls -la
-  PHP:
-    name: Version php
+          pg_isready \
+            -h 127.0.0.1 \
+            -p 5432 \
+            -U postgres
+
+      - name: Préparer la base
+        run: |
+          php artisan migrate:fresh --force
+
+      - name: Tests
+        run: |
+          php artisan test
+
+
+  # ==========================================================
+  # QUALITY
+  # ==========================================================
+
+  quality:
+    name: Quality Gate
 
     runs-on: ubuntu-latest
 
+    needs: tests
+
     steps:
-      - name: Version du php
-        run: php --version
-    
 
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Installer PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+
+      - name: Installer Composer
+        run: |
+          composer install \
+            --no-interaction \
+            --prefer-dist
+
+      - name: Vérifier Pint
+        run: |
+          ./vendor/bin/pint --test
+
+      - name: Vérifier PHPStan
+        run: |
+          ./vendor/bin/phpstan analyse
