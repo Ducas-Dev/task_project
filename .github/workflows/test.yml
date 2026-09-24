@@ -42,3 +42,14 @@ jobs:
           echo "=== Projet ==="
           pwd
           ls -la
+  PHP:
+    name: Version php
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Version du php
+        run: php --version
+    
+
+
