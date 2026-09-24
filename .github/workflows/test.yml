@@ -50,8 +50,8 @@ jobs:
           echo "Variables nécessaires présentes"
 
 
-  infrastructure:
-    name: Infrastructure Docker
+  laravel:
+    name: Validation Laravel
     runs-on: ubuntu-latest
     needs: preparation
 
@@ -86,30 +86,6 @@ jobs:
 
           echo "PostgreSQL est prêt"
 
-
-  laravel:
-    name: Validation Laravel
-    runs-on: ubuntu-latest
-    needs: infrastructure
-
-    env:
-      APP_KEY: ${{ secrets.APP_KEY }}
-      DB_DATABASE: ${{ secrets.DB_DATABASE }}
-      DB_USERNAME: ${{ secrets.DB_USERNAME }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-
-    steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v4
-
-      - name: Construire et démarrer les services
-        run: |
-          docker compose up -d --build
-
-      - name: Vérifier les services
-        run: |
-          docker compose ps
-
       - name: Vérifier la version Laravel
         run: |
           docker compose exec -T app \
@@ -125,21 +101,15 @@ jobs:
           docker compose exec -T app \
             php artisan db:show
 
-  cleanup:
-    name: Nettoyage
-    runs-on: ubuntu-latest
+      - name: Exécuter les migrations
+        run: |
+          docker compose exec -T app \
+            php artisan migrate:fresh --force
 
-    needs:
-      - infrastructure
-      - laravel
-      - backend-tests
-      - playwright
-
-    if: always()
-
-    steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v4
+      - name: Exécuter les tests Laravel
+        run: |
+          docker compose exec -T app \
+            php artisan test
 
       - name: Afficher les logs en cas d'échec
         if: failure()
