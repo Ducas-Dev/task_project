@@ -158,6 +158,7 @@ jobs:
       - name: Construire l'image
         run: |
           docker build \
+            -f docker/php/Dockerfile \
             -t task-app:${{ github.sha }} \
             .
 
