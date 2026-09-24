@@ -1,63 +1,44 @@
-name: Laravel CI
+name: CI
 
 on:
   push:
     branches:
       - main
 
-  pull_request:
-    branches:
-      - main
-
 jobs:
 
-  tests:
+  environment:
+    name: Découvrir GitHub Actions
+
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-
-        env:
-          POSTGRES_DB: testing
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-
-        ports:
-          - 5432:5432
-
-        options: >-
-          --health-cmd="pg_isready -U postgres -d testing"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-    env:
-      DB_CONNECTION: pgsql
-      DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_DATABASE: testing
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
 
     steps:
 
-      - name: Checkout
+      - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.4"
-          extensions: pdo, pdo_pgsql
-
-      - name: Composer
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Préparer Laravel
+      - name: Afficher le système
         run: |
-          cp .env.example .env
-          php artisan key:generate
+          echo "=== Système ==="
+          uname -a
 
-      - name: Migrations
-        run: php artisan migrate --force
+      - name: Afficher PHP
+        run: |
+          echo "=== PHP ==="
+          php --version
+
+      - name: Afficher Git
+        run: |
+          echo "=== Git ==="
+          git --version
+
+      - name: Afficher Docker
+        run: |
+          echo "=== Docker ==="
+          docker --version
+
+      - name: Afficher le projet
+        run: |
+          echo "=== Projet ==="
+          pwd
+          ls -la
