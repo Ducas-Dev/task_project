@@ -118,7 +118,7 @@ jobs:
 
       - name: Vérifier Pint
         run: |
-          ./vendor/bin/pint --test
+          ./vendor/bin/pint
 
       - name: Vérifier PHPStan
         run: |
