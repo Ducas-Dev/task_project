@@ -136,36 +136,34 @@ jobs:
           composer require --working-dir=tools phpstan/phpstan larastan/larastan
 
       - name: PHPStan
-        run: ./tools/vendor/bin/phpstan analyse app
-
-        
+        run: ./tools/vendor/bin/phpstan analyse app     
   build:
-  name: Build Docker
+    name: Build Docker
 
-  runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
-  needs:
-    - tests
-    - quality
+    needs:
+      - tests
+      - quality
 
-  steps:
+    steps:
 
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Vérifier Docker
-      run: |
-        docker --version
+      - name: Vérifier Docker
+        run: |
+          docker --version
 
-    - name: Construire l'image
-      run: |
-        docker build \
-          -t task-app:${{ github.sha }} \
-          .
+      - name: Construire l'image
+        run: |
+          docker build \
+            -t task-app:${{ github.sha }} \
+            .
 
-    - name: Vérifier l'image
-      run: |
-        docker image inspect \
-          task-app:${{ github.sha }}
+      - name: Vérifier l'image
+        run: |
+          docker image inspect \
+            task-app:${{ github.sha }}
 
 
