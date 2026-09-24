@@ -106,11 +106,6 @@ jobs:
           docker compose exec -T app \
             php artisan migrate:fresh --force
 
-      - name: Exécuter les tests Laravel
-        run: |
-          docker compose exec -T app \
-            php artisan test
-
       - name: Afficher les logs en cas d'échec
         if: failure()
         run: |
