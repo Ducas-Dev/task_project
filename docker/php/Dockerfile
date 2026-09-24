@@ -51,4 +51,5 @@ RUN composer dump-autoload --optimize
 EXPOSE 8000
 EXPOSE 5173
 
-CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
+CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000
+
