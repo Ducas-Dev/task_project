@@ -130,6 +130,11 @@ jobs:
         run: |
           ./vendor/bin/pint --test
 
-      - name: Vérifier PHPStan
+      - name: Installer PHPStan
         run: |
-          ./vendor/bin/phpstan analyse
+          mkdir -p tools
+          composer require --working-dir=tools phpstan/phpstan
+
+      - name: PHPStan
+        run: ./tools/vendor/bin/phpstan analyse
+
