@@ -11,6 +11,6 @@ class Task extends Model
         'description',
         'status',
         'priorite',
-        'date_echeance'
+        'date_echeance',
     ];
 }
