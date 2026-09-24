@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     libonig-dev \
     libzip-dev \
+    libicu-dev \
     zip \
     unzip \
     curl \
@@ -18,39 +19,40 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Node.js
 COPY --from=node:22 /usr/local/bin/node /usr/local/bin/node
 COPY --from=node:22 /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
-# Composer
+# Dépendances PHP
 COPY composer.json composer.lock ./
 
-# On désactive les scripts temporairement
 RUN composer install \
     --no-interaction \
     --no-progress \
     --prefer-dist \
     --no-scripts
 
-# Node
+# Dépendances JavaScript
 COPY package.json package-lock.json* ./
+
 RUN npm install
 
 # Application
 COPY . .
 
-
-# Générer les assets Vite
+# Assets Vite
 RUN npm run build
 
-# Maintenant artisan existe
+# Autoload Laravel
 RUN composer dump-autoload --optimize
 
+# Port Render
 EXPOSE 8000
-EXPOSE 5173
 
+# Migrations + serveur Laravel
 CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000
-
