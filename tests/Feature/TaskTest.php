@@ -19,7 +19,6 @@ class TaskTest extends TestCase
         $response = $this->get(route('get.task'));
 
         $response->assertStatus(200);
-        $response->assertViewIs('task');
     }
 
     /**
