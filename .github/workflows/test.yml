@@ -18,11 +18,9 @@ jobs:
 
   tests:
     name: Tests Laravel
-
     runs-on: ubuntu-latest
 
     services:
-
       postgres:
         image: postgres:16
 
@@ -41,7 +39,7 @@ jobs:
           --health-retries=5
 
     env:
-
+      APP_ENV: testing
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
@@ -51,8 +49,16 @@ jobs:
 
     steps:
 
+      # --------------------------------------------------------
+      # Checkout
+      # --------------------------------------------------------
+
       - name: Checkout
         uses: actions/checkout@v4
+
+      # --------------------------------------------------------
+      # PHP
+      # --------------------------------------------------------
 
       - name: Installer PHP
         uses: shivammathur/setup-php@v2
@@ -60,12 +66,46 @@ jobs:
           php-version: "8.4"
           extensions: pdo, pdo_pgsql
           coverage: none
+          tools: composer
 
-      - name: Installer Composer
+      # --------------------------------------------------------
+      # Node.js
+      # --------------------------------------------------------
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      # --------------------------------------------------------
+      # Composer
+      # --------------------------------------------------------
+
+      - name: Installer les dépendances PHP
         run: |
           composer install \
             --no-interaction \
-            --prefer-dist
+            --prefer-dist \
+            --optimize-autoloader
+
+      # --------------------------------------------------------
+      # NPM
+      # --------------------------------------------------------
+
+      - name: Installer les dépendances JavaScript
+        run: npm ci
+
+      # --------------------------------------------------------
+      # Build Vite
+      # --------------------------------------------------------
+
+      - name: Construire les assets Vite
+        run: npm run build
+
+      # --------------------------------------------------------
+      # Laravel
+      # --------------------------------------------------------
 
       - name: Préparer Laravel
         run: |
@@ -75,6 +115,11 @@ jobs:
       - name: Nettoyer la configuration
         run: |
           php artisan config:clear
+          php artisan cache:clear
+
+      # --------------------------------------------------------
+      # PostgreSQL
+      # --------------------------------------------------------
 
       - name: Vérifier PostgreSQL
         run: |
@@ -83,16 +128,19 @@ jobs:
             -p 5432 \
             -U postgres
 
-      - name: Préparer la base
+      # --------------------------------------------------------
+      # Database
+      # --------------------------------------------------------
+
+      - name: Préparer la base de données
         run: |
           php artisan migrate:fresh --force
 
+      # --------------------------------------------------------
+      # Tests
+      # --------------------------------------------------------
 
-      - name: demarre vite
-        run: |
-          npm run dev
-
-      - name: Test unitaire
+      - name: Tests Laravel
         run: |
           php artisan test
 
@@ -103,7 +151,6 @@ jobs:
 
   quality:
     name: Quality Gate
-
     runs-on: ubuntu-latest
 
     needs: tests
@@ -113,42 +160,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # --------------------------------------------------------
+      # PHP
+      # --------------------------------------------------------
+
       - name: Installer PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
           coverage: none
+          tools: composer
 
-      - name: Installer Composer
+      # --------------------------------------------------------
+      # Composer
+      # --------------------------------------------------------
+
+      - name: Installer les dépendances PHP
         run: |
           composer install \
             --no-interaction \
-            --prefer-dist
+            --prefer-dist \
+            --optimize-autoloader
+
+      # --------------------------------------------------------
+      # Laravel Pint
+      # --------------------------------------------------------
 
       - name: Vérifier Pint
         run: |
-          ./vendor/bin/pint
-      
-      - name: Les modification apportées
-        run: git status
-
-      - name: Les corrections
-        run: git diff
-
-      - name: Le test pin vérification
-        run: |
           ./vendor/bin/pint --test
+
+      # --------------------------------------------------------
+      # PHPStan / Larastan
+      # --------------------------------------------------------
 
       - name: Installer PHPStan et Larastan
         run: |
-          mkdir -p tools
-          composer require --working-dir=tools phpstan/phpstan larastan/larastan
+          composer install --dev --no-interaction --prefer-dist
 
       - name: PHPStan
-        run: ./tools/vendor/bin/phpstan analyse app     
+        run: |
+          ./vendor/bin/phpstan analyse app
+
+
+  # ==========================================================
+  # DOCKER BUILD
+  # ==========================================================
+
   build:
     name: Build Docker
-
     runs-on: ubuntu-latest
 
     needs:
@@ -175,5 +235,3 @@ jobs:
         run: |
           docker image inspect \
             task-app:${{ github.sha }}
-
-
