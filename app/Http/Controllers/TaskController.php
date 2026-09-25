@@ -31,14 +31,12 @@ class TaskController extends Controller
             ));
 
         } catch (\Exception $th) {
-            Log::error('Erreur lors de la récupération des tâches', [
+            Log::error('Erreur lors de la création de la tâche', [
                 'message' => $th->getMessage(),
                 'exception' => get_class($th),
             ]);
-
-            throw $th;
+            return back()->with('error', 'Une erreur est survenue : ' . $th->getMessage());
         }
-
     }
 
 
