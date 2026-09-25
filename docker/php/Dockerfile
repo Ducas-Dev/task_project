@@ -1,58 +1,149 @@
-FROM php:8.4-cli
+# ==========================================================
+# STAGE 1 — Build des assets Vite
+# ==========================================================
+
+FROM node:20-alpine AS frontend
+
+WORKDIR /app
+
+# Copier uniquement les fichiers npm
+COPY package.json package-lock.json ./
+
+# Installer les dépendances JavaScript
+RUN npm ci
+
+# Copier les fichiers nécessaires à Vite
+COPY resources ./resources
+COPY public ./public
+COPY vite.config.js ./
+
+# Si tu as une configuration Vite supplémentaire,
+# elle peut être copiée ici également.
+# COPY postcss.config.js ./
+
+# Construire les assets
+RUN npm run build
+
+
+# ==========================================================
+# STAGE 2 — Application Laravel
+# ==========================================================
+
+FROM php:8.4-fpm
 
 WORKDIR /var/www/html
 
+
+# ==========================================================
+# Arguments / variables
+# ==========================================================
+
+ARG APP_ENV=production
+
+
+# ==========================================================
+# Dépendances système
+# ==========================================================
+
 RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
     libpq-dev \
-    libonig-dev \
     libzip-dev \
     libicu-dev \
-    zip \
-    unzip \
-    curl \
-    git \
+    libonig-dev \
     && docker-php-ext-install \
         pdo_pgsql \
+        pgsql \
         mbstring \
-        zip \
+        bcmath \
         intl \
+        zip \
+        opcache \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+
+# ==========================================================
 # Composer
+# ==========================================================
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Node.js
-COPY --from=node:22 /usr/local/bin/node /usr/local/bin/node
-COPY --from=node:22 /usr/local/lib/node_modules /usr/local/lib/node_modules
 
-RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+# ==========================================================
+# Copier le projet Laravel
+# ==========================================================
 
-# Dépendances PHP
-COPY composer.json composer.lock ./
-
-RUN composer install \
-    --no-interaction \
-    --no-progress \
-    --prefer-dist \
-    --no-scripts
-
-# Dépendances JavaScript
-COPY package.json package-lock.json* ./
-
-RUN npm install
-
-# Application
 COPY . .
 
-# Assets Vite
-RUN npm run build
 
-# Autoload Laravel
-RUN composer dump-autoload --optimize
+# ==========================================================
+# Installer les dépendances Laravel
+# ==========================================================
 
-# Port Render
-EXPOSE 8000
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader
 
-# Migrations + serveur Laravel
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000
+
+# ==========================================================
+# Copier les assets générés par Vite
+# ==========================================================
+
+COPY --from=frontend /app/public/build ./public/build
+
+
+# ==========================================================
+# Configuration PHP
+# ==========================================================
+
+RUN docker-php-ext-enable \
+    pdo_pgsql \
+    pgsql \
+    opcache
+
+
+# ==========================================================
+# Permissions Laravel
+# ==========================================================
+
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache \
+    public
+
+
+RUN chmod -R 775 \
+    storage \
+    bootstrap/cache
+
+
+# ==========================================================
+# OPcache
+# ==========================================================
+
+RUN { \
+        echo 'opcache.enable=1'; \
+        echo 'opcache.enable_cli=1'; \
+        echo 'opcache.memory_consumption=128'; \
+        echo 'opcache.interned_strings_buffer=8'; \
+        echo 'opcache.max_accelerated_files=10000'; \
+        echo 'opcache.validate_timestamps=0'; \
+    } > /usr/local/etc/php/conf.d/opcache.ini
+
+
+# ==========================================================
+# Port PHP-FPM
+# ==========================================================
+
+EXPOSE 9000
+
+
+# ==========================================================
+# Démarrage
+# ==========================================================
+
+CMD ["php-fpm"]
