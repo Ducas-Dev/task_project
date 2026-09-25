@@ -87,6 +87,11 @@ jobs:
         run: |
           php artisan migrate:fresh --force
 
+
+      - name: demarre vite
+        run: |
+          npm run dev
+
       - name: Test unitaire
         run: |
           php artisan test
