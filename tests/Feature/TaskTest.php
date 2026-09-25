@@ -53,7 +53,7 @@ class TaskTest extends TestCase
      */
     public function test_le_titre_est_obligatoire(): void
     {
-
+        
         $response = $this->post(route('save.task'), [
             'task' => '',
             'description' => 'Description de test',
@@ -70,13 +70,14 @@ class TaskTest extends TestCase
      */
     public function test_un_utilisateur_peut_modifier_une_tache(): void
     {
+        $dateEcheance = Carbon::today()->addDays(7)->format('Y-m-d');
 
         $task = Task::create([
             'task' => 'Ancien titre',
             'description' => 'Ancienne description',
             'status' => 'en_attente',
             'priorite' => 'faible',
-            'date_echeance' => Carbon::today()->addDays(7)->format('Y-m-d'),
+            'date_echeance' => $dateEcheance,
         ]);
 
         $response = $this->put(
@@ -86,7 +87,7 @@ class TaskTest extends TestCase
                 'description' => 'Nouvelle description',
                 'status' => 'en_cours',
                 'priorite' => 'elever',
-                'date_echeance' => Carbon::today()->addDays(7)->format('Y-m-d'),
+                'date_echeance' => $dateEcheance,
             ]
         );
 
@@ -98,7 +99,7 @@ class TaskTest extends TestCase
             'description' => 'Nouvelle description',
             'status' => 'en_cours',
             'priorite' => 'elever',
-            'date_echeance' => '2026-09-15',
+            'date_echeance' => $dateEcheance,
         ]);
     }
 
