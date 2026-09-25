@@ -245,6 +245,9 @@ jobs:
           coverage: none
           tools: composer
 
+      - name: Composer install
+        run: |
+          composer install
 
       - name: Composer audit
         run: |
