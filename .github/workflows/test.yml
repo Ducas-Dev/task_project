@@ -115,7 +115,6 @@ jobs:
       - name: Nettoyer la configuration
         run: |
           php artisan config:clear
-          php artisan cache:clear
 
       # --------------------------------------------------------
       # PostgreSQL
