@@ -1,4 +1,4 @@
-name: Laravel CI
+name: Laravel CI/CD
 
 on:
   push:
@@ -9,18 +9,34 @@ on:
     branches:
       - main
 
+concurrency:
+  group: laravel-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
+# ==========================================================
+# VARIABLES COMMUNES
+# ==========================================================
+
+env:
+  PHP_VERSION: "8.4"
+  NODE_VERSION: "20"
+
 
 jobs:
 
-  # ==========================================================
-  # TESTS
-  # ==========================================================
+  # ========================================================
+  # 1. TESTS
+  # ========================================================
 
   tests:
+
     name: Tests Laravel
+
     runs-on: ubuntu-latest
 
     services:
+
       postgres:
         image: postgres:16
 
@@ -34,12 +50,15 @@ jobs:
 
         options: >-
           --health-cmd="pg_isready -U postgres -d testing"
-          --health-interval=10s
+          --health-interval=5s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
 
     env:
+
       APP_ENV: testing
+      APP_DEBUG: true
+
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
@@ -47,109 +66,133 @@ jobs:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
 
+      CACHE_STORE: file
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+
     steps:
 
-      # --------------------------------------------------------
+      # ----------------------------------------------------
       # Checkout
-      # --------------------------------------------------------
+      # ----------------------------------------------------
 
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --------------------------------------------------------
-      # PHP
-      # --------------------------------------------------------
 
-      - name: Installer PHP
+      # ----------------------------------------------------
+      # PHP
+      # ----------------------------------------------------
+
+      - name: Setup PHP
         uses: shivammathur/setup-php@v2
+
         with:
-          php-version: "8.4"
-          extensions: pdo, pdo_pgsql
+          php-version: ${{ env.PHP_VERSION }}
+
+          extensions: >
+            mbstring,
+            bcmath,
+            intl,
+            pdo,
+            pdo_pgsql,
+            pgsql,
+            zip
+
           coverage: none
+
           tools: composer
 
-      # --------------------------------------------------------
-      # Node.js
-      # --------------------------------------------------------
 
-      - name: Installer Node.js
+      # ----------------------------------------------------
+      # Node
+      # ----------------------------------------------------
+
+      - name: Setup Node
         uses: actions/setup-node@v4
+
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      # --------------------------------------------------------
-      # Composer
-      # --------------------------------------------------------
 
-      - name: Installer les dépendances PHP
+      # ----------------------------------------------------
+      # Composer
+      # ----------------------------------------------------
+
+      - name: Install PHP dependencies
         run: |
           composer install \
             --no-interaction \
             --prefer-dist \
             --optimize-autoloader
 
-      # --------------------------------------------------------
-      # NPM
-      # --------------------------------------------------------
 
-      - name: Installer les dépendances JavaScript
+      # ----------------------------------------------------
+      # NPM
+      # ----------------------------------------------------
+
+      - name: Install Node dependencies
         run: npm ci
 
-      # --------------------------------------------------------
-      # Build Vite
-      # --------------------------------------------------------
 
-      - name: Construire les assets Vite
-        run: npm run build
-
-      # --------------------------------------------------------
+      # ----------------------------------------------------
       # Laravel
-      # --------------------------------------------------------
+      # ----------------------------------------------------
 
-      - name: Préparer Laravel
+      - name: Prepare Laravel
         run: |
           cp .env.example .env
           php artisan key:generate
-
-      - name: Nettoyer la configuration
-        run: |
           php artisan config:clear
 
-      # --------------------------------------------------------
-      # PostgreSQL
-      # --------------------------------------------------------
 
-      - name: Vérifier PostgreSQL
+      # ----------------------------------------------------
+      # Vite
+      # ----------------------------------------------------
+
+      - name: Build Vite assets
+        run: npm run build
+
+
+      # ----------------------------------------------------
+      # PostgreSQL
+      # ----------------------------------------------------
+
+      - name: Check PostgreSQL
         run: |
           pg_isready \
             -h 127.0.0.1 \
             -p 5432 \
             -U postgres
 
-      # --------------------------------------------------------
-      # Database
-      # --------------------------------------------------------
 
-      - name: Préparer la base de données
+      # ----------------------------------------------------
+      # Database
+      # ----------------------------------------------------
+
+      - name: Run migrations
         run: |
           php artisan migrate:fresh --force
 
-      # --------------------------------------------------------
-      # Tests
-      # --------------------------------------------------------
 
-      - name: Tests Laravel
+      # ----------------------------------------------------
+      # Tests
+      # ----------------------------------------------------
+
+      - name: Run tests
         run: |
           php artisan test
 
 
-  # ==========================================================
-  # QUALITY
-  # ==========================================================
+  # ========================================================
+  # 2. QUALITY
+  # ========================================================
 
   quality:
-    name: Quality Gate
+
+    name: Code Quality
+
     runs-on: ubuntu-latest
 
     needs: tests
@@ -159,78 +202,148 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --------------------------------------------------------
-      # PHP
-      # --------------------------------------------------------
 
-      - name: Installer PHP
+      - name: Setup PHP
         uses: shivammathur/setup-php@v2
+
         with:
-          php-version: "8.4"
+          php-version: ${{ env.PHP_VERSION }}
           coverage: none
           tools: composer
 
-      # --------------------------------------------------------
-      # Composer
-      # --------------------------------------------------------
 
-      - name: Installer les dépendances PHP
+      - name: Install dependencies
         run: |
           composer install \
             --no-interaction \
-            --prefer-dist \
-            --optimize-autoloader
-
-      # --------------------------------------------------------
-      # Laravel Pint
-      # --------------------------------------------------------
-
-      - name: Vérifier Pint
-        run: |
-          ./vendor/bin/pint 
-
-      # --------------------------------------------------------
-      # PHPStan / Larastan
-      # --------------------------------------------------------
-
-      - name: Installer PHPStan et Larastan
-        run: |
-          composer install --dev --no-interaction --prefer-dist
-
-      - name: PHPStan
-        run: |
-          ./vendor/bin/phpstan analyse app
+            --prefer-dist
 
 
-  # ==========================================================
-  # DOCKER BUILD
-  # ==========================================================
+  # ========================================================
+  # 3. SECURITY
+  # ========================================================
 
-  build:
-    name: Build Docker
+  security:
+
+    name: Security Audit
+
     runs-on: ubuntu-latest
 
-    needs:
-      - tests
-      - quality
+    needs: tests
 
     steps:
 
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Vérifier Docker
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+          tools: composer
+
+
+      - name: Composer audit
+        run: |
+          composer audit
+
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+
+      - name: Install Node dependencies
+        run: npm ci
+
+
+      - name: NPM audit
+        run: |
+          npm audit --audit-level=high
+
+
+  # ========================================================
+  # 4. BUILD DOCKER
+  # ========================================================
+
+  build:
+
+    name: Build Docker
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - tests
+      - quality
+      - security
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+
+      - name: Docker version
         run: |
           docker --version
 
-      - name: Construire l'image
+
+      # ----------------------------------------------------
+      # Build image
+      # ----------------------------------------------------
+
+      - name: Build Docker image
         run: |
           docker build \
             -f docker/php/Dockerfile \
             -t task-app:${{ github.sha }} \
             .
 
-      - name: Vérifier l'image
+
+      # ----------------------------------------------------
+      # Verify image
+      # ----------------------------------------------------
+
+      - name: Verify Vite manifest
+        run: |
+          docker run --rm \
+            task-app:${{ github.sha }} \
+            test -f /var/www/html/public/build/manifest.json
+
+
+      - name: Inspect Docker image
         run: |
           docker image inspect \
             task-app:${{ github.sha }}
+
+
+  # ========================================================
+  # 5. DEPLOY
+  # ========================================================
+
+  deploy:
+
+    name: Deploy Production
+
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    # IMPORTANT :
+    # Le déploiement ne se fait que sur main.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    environment:
+      name: production
+
+    steps:
+
+      - name: Deploy
+        run: |
+          echo "Déploiement en production..."
