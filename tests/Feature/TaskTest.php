@@ -86,7 +86,7 @@ class TaskTest extends TestCase
                 'description' => 'Nouvelle description',
                 'status' => 'en_cours',
                 'priorite' => 'elever',
-                'date_echeance' => '2026-09-15',
+                'date_echeance' => Carbon::today()->addDays(7)->format('Y-m-d'),
             ]
         );
 

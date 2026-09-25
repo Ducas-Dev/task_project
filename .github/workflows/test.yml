@@ -87,6 +87,10 @@ jobs:
         run: |
           php artisan migrate:fresh --force
 
+      - name: Test unitaire
+        run: |
+          php artisan test
+
 
   # ==========================================================
   # QUALITY
