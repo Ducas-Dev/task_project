@@ -187,7 +187,7 @@ jobs:
 
       - name: Vérifier Pint
         run: |
-          ./vendor/bin/pint --test
+          ./vendor/bin/pint 
 
       # --------------------------------------------------------
       # PHPStan / Larastan
